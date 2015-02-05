@@ -17,11 +17,18 @@
 
 package org.strongswan.android.data;
 
-public class VpnProfile implements Cloneable
+import android.os.Parcelable;
+import android.os.Parcel;
+
+public class VpnProfile implements Cloneable, Parcelable
 {
 	private String mName, mGateway, mUsername, mPassword, mCertificate, mUserCertificate;
 	private VpnType mVpnType;
 	private long mId = -1;
+
+
+	public VpnProfile() {
+	}
 
 	public long getId()
 	{
@@ -131,4 +138,48 @@ public class VpnProfile implements Cloneable
 			throw new AssertionError();
 		}
 	}
+
+	protected VpnProfile(Parcel in) {
+		mName = in.readString();
+		mGateway = in.readString();
+		mUsername = in.readString();
+		mPassword = in.readString();
+		mCertificate = in.readString();
+		mUserCertificate = in.readString();
+		String vpnTypeId = (String)in.readValue(null);
+		if(vpnTypeId != null)
+			mVpnType = VpnType.fromIdentifier(vpnTypeId);
+		mId = in.readLong();
+	}
+
+	@Override
+	public int describeContents() {
+		return 0;
+	}
+
+	@Override
+	public void writeToParcel(Parcel dest, int flags) {
+		dest.writeString(mName);
+		dest.writeString(mGateway);
+		dest.writeString(mUsername);
+		dest.writeString(mPassword);
+		dest.writeString(mCertificate);
+		dest.writeString(mUserCertificate);
+		String vpnTypeId = (mVpnType != null ? mVpnType.getIdentifier() : null); 
+		dest.writeValue(vpnTypeId);
+		dest.writeLong(mId);
+	}
+
+	@SuppressWarnings("unused")
+	public static final Parcelable.Creator<VpnProfile> CREATOR = new Parcelable.Creator<VpnProfile>() {
+		@Override
+		public VpnProfile createFromParcel(Parcel in) {
+			return new VpnProfile(in);
+		}
+
+		@Override
+		public VpnProfile[] newArray(int size) {
+			return new VpnProfile[size];
+		}
+	};
 }
