@@ -25,7 +25,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.strongswan.android.data.VpnProfile;
-import org.strongswan.android.data.VpnProfileDataSource;
 import org.strongswan.android.logic.VpnStateService.ErrorState;
 import org.strongswan.android.logic.VpnStateService.State;
 import org.strongswan.android.logic.imc.ImcState;
@@ -49,9 +48,9 @@ public class CharonVpnService extends VpnService implements Runnable
 {
 	private static final String TAG = CharonVpnService.class.getSimpleName();
 	public static final String LOG_FILE = "charon.log";
+	public static final String PROFILE_BUNDLE_KEY = "profile";
 
 	private String mLogFile;
-	private VpnProfileDataSource mDataSource;
 	private Thread mConnectionHandler;
 	private VpnProfile mCurrentProfile;
 	private volatile String mCurrentCertificateAlias;
@@ -104,12 +103,7 @@ public class CharonVpnService extends VpnService implements Runnable
 			VpnProfile profile = null;
 			if (bundle != null)
 			{
-				profile = mDataSource.getVpnProfile(bundle.getLong(VpnProfileDataSource.KEY_ID));
-				if (profile != null)
-				{
-					String password = bundle.getString(VpnProfileDataSource.KEY_PASSWORD);
-					profile.setPassword(password);
-				}
+				profile = (VpnProfile)bundle.getParcelable(PROFILE_BUNDLE_KEY);
 			}
 			setNextProfile(profile);
 		}
@@ -121,8 +115,6 @@ public class CharonVpnService extends VpnService implements Runnable
 	{
 		mLogFile = getFilesDir().getAbsolutePath() + File.separator + LOG_FILE;
 
-		mDataSource = new VpnProfileDataSource(this);
-		mDataSource.open();
 		/* use a separate thread as main thread for charon */
 		mConnectionHandler = new Thread(this);
 		/* the thread is started when the service is bound */
@@ -154,7 +146,6 @@ public class CharonVpnService extends VpnService implements Runnable
 		{
 			unbindService(mServiceConnection);
 		}
-		mDataSource.close();
 	}
 
 	/**
