@@ -30,7 +30,6 @@ import org.strongswan.android.logic.VpnStateService.ErrorState;
 import org.strongswan.android.logic.VpnStateService.State;
 import org.strongswan.android.logic.imc.ImcState;
 import org.strongswan.android.logic.imc.RemediationInstruction;
-import org.strongswan.android.ui.MainActivity;
 
 import android.app.PendingIntent;
 import android.app.Service;
@@ -541,14 +540,6 @@ public class CharonVpnService extends VpnService implements Runnable
 		{
 			VpnService.Builder builder = new CharonVpnService.Builder();
 			builder.setSession(mName);
-
-			/* even though the option displayed in the system dialog says "Configure"
-			 * we just use our main Activity */
-			Context context = getApplicationContext();
-			Intent intent = new Intent(context, MainActivity.class);
-			PendingIntent pending = PendingIntent.getActivity(context, 0, intent,
-															  PendingIntent.FLAG_UPDATE_CURRENT);
-			builder.setConfigureIntent(pending);
 			return builder;
 		}
 
@@ -729,15 +720,10 @@ public class CharonVpnService extends VpnService implements Runnable
 	static
 	{
 		System.loadLibrary("strongswan");
-
-		if (MainActivity.USE_BYOD)
-		{
-			System.loadLibrary("tncif");
-			System.loadLibrary("tnccs");
-			System.loadLibrary("imcv");
-			System.loadLibrary("pts");
-		}
-
+		System.loadLibrary("tncif");
+		System.loadLibrary("tnccs");
+		System.loadLibrary("imcv");
+		System.loadLibrary("pts");
 		System.loadLibrary("hydra");
 		System.loadLibrary("charon");
 		System.loadLibrary("ipsec");
