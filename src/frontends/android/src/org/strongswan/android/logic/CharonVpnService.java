@@ -18,7 +18,11 @@
 package org.strongswan.android.logic;
 
 import java.io.File;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.Certificate;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
@@ -55,6 +59,7 @@ public class CharonVpnService extends VpnService implements Runnable
 	private VpnProfile mCurrentProfile;
 	private volatile String mCurrentCertificateAlias;
 	private volatile String mCurrentUserCertificateAlias;
+	private volatile String mCurrentUserCertificatePassword;
 	private VpnProfile mNextProfile;
 	private volatile boolean mProfileUpdated;
 	private volatile boolean mTerminate;
@@ -196,6 +201,7 @@ public class CharonVpnService extends VpnService implements Runnable
 						 * a possible deadlock during deinitialization */
 						mCurrentCertificateAlias = mCurrentProfile.getCertificateAlias();
 						mCurrentUserCertificateAlias = mCurrentProfile.getUserCertificateAlias();
+						mCurrentUserCertificatePassword = mCurrentProfile.getUserCertificatePassword();
 
 						startConnection(mCurrentProfile);
 						mIsDisconnecting = false;
@@ -457,15 +463,15 @@ public class CharonVpnService extends VpnService implements Runnable
 	 * @throws KeyChainException
 	 * @throws CertificateEncodingException
 	 */
-	private byte[][] getUserCertificate() throws KeyChainException, InterruptedException, CertificateEncodingException
+	private byte[][] getUserCertificate() throws KeyStoreException, CertificateEncodingException
 	{
 		ArrayList<byte[]> encodings = new ArrayList<byte[]>();
-		X509Certificate[] chain = KeyChain.getCertificateChain(getApplicationContext(), mCurrentUserCertificateAlias);
+		Certificate[] chain = UserCredentialManager.getInstance().getUserCertificateChain(mCurrentUserCertificateAlias);
 		if (chain == null || chain.length == 0)
 		{
 			return null;
 		}
-		for (X509Certificate cert : chain)
+		for (Certificate cert : chain)
 		{
 			encodings.add(cert.getEncoded());
 		}
@@ -483,10 +489,9 @@ public class CharonVpnService extends VpnService implements Runnable
 	 * @throws KeyChainException
 	 * @throws CertificateEncodingException
 	 */
-	private PrivateKey getUserKey() throws KeyChainException, InterruptedException
+	private PrivateKey getUserKey() throws KeyStoreException, NoSuchAlgorithmException, UnrecoverableKeyException
 	{
-		return KeyChain.getPrivateKey(getApplicationContext(), mCurrentUserCertificateAlias);
-
+		return UserCredentialManager.getInstance().getUserKey(mCurrentUserCertificateAlias, mCurrentUserCertificatePassword.toCharArray());
 	}
 
 	/**
