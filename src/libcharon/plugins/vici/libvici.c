@@ -427,18 +427,12 @@ vici_res_t* vici_submit(vici_req_t *req, vici_conn_t *conn)
 
 void vici_free_req(vici_req_t *req)
 {
-	vici_message_t *message;
-
 	free(req->name);
-	message = req->b->finalize(req->b);
-	if (message)
-	{
-		message->destroy(message);
-	}
+	req->b->destroy(req->b);
 	free(req);
 }
 
-int vici_dump(vici_res_t *res, char *label, bool pretty, FILE *out)
+int vici_dump(vici_res_t *res, char *label, int pretty, FILE *out)
 {
 	if (res->message->dump(res->message, label, pretty, out))
 	{
@@ -754,11 +748,14 @@ void vici_init()
 	library_init(NULL, "vici");
 	if (lib->processor->get_total_threads(lib->processor) < 4)
 	{
+		dbg_default_set_level(0);
 		lib->processor->set_threads(lib->processor, 4);
+		dbg_default_set_level(1);
 	}
 }
 
 void vici_deinit()
 {
+	lib->processor->cancel(lib->processor);
 	library_deinit();
 }

@@ -46,7 +46,7 @@ CLEANFILES = $(man_MANS)
 
 swanctl.conf.5.main: swanctl.opt
 	$(AM_V_GEN) \
-	$(PYTHON) $(top_srcdir)/conf/format-options.py -n -f man $< > $(srcdir)/$@
+	$(PYTHON) $(top_srcdir)/conf/format-options.py -n -f man swanctl.opt > $(srcdir)/$@
 
 swanctl.conf.5: swanctl.conf.5.head swanctl.conf.5.main swanctl.conf.5.tail
 	$(AM_V_GEN) \
@@ -56,7 +56,7 @@ maintainer-clean-local:
 	cd $(srcdir) && rm -f swanctl.conf swanctl.conf.5.main
 
 install-data-local: swanctl.conf
-	test -e "$(DESTDIR)$(swanctldir)" || $(INSTALL) -d "$(DESTDIR)$(swanctldir)"
+	test -e "$(DESTDIR)$(swanctldir)" || $(INSTALL) -d "$(DESTDIR)$(swanctldir)" || true
 	test -e "$(DESTDIR)$(swanctldir)/x509" || $(INSTALL) -d "$(DESTDIR)$(swanctldir)/x509" || true
 	test -e "$(DESTDIR)$(swanctldir)/x509ca" || $(INSTALL) -d "$(DESTDIR)$(swanctldir)/x509ca" || true
 	test -e "$(DESTDIR)$(swanctldir)/x509aa" || $(INSTALL) -d "$(DESTDIR)$(swanctldir)/x509aa" || true

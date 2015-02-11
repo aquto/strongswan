@@ -65,6 +65,11 @@ struct private_stroke_cred_t {
 	stroke_cred_t public;
 
 	/**
+	 * secrets file with credential information
+	 */
+	char *secrets_file;
+
+	/**
 	 * credentials
 	 */
 	mem_cred_t *creds;
@@ -1119,6 +1124,7 @@ static void load_secrets(private_stroke_cred_t *this, mem_cred_t *secrets,
 	while (fetchline(src, &line))
 	{
 		chunk_t ids, token;
+		key_type_t key_type;
 		shared_key_type_t type;
 
 		line_nr++;
@@ -1217,10 +1223,22 @@ static void load_secrets(private_stroke_cred_t *this, mem_cred_t *secrets,
 			DBG1(DBG_CFG, "line %d: missing token", line_nr);
 			break;
 		}
-		if (match("RSA", &token) || match("ECDSA", &token))
+		if (match("RSA", &token) || match("ECDSA", &token) ||
+			match("BLISS", &token))
 		{
-			if (!load_private(secrets, line, line_nr, prompt,
-							  match("RSA", &token) ? KEY_RSA : KEY_ECDSA))
+			if (match("RSA", &token))
+			{
+				key_type = KEY_RSA;
+			}
+			else if (match("ECDSA", &token))
+			{
+				key_type = KEY_ECDSA;
+			}
+			else
+			{
+				key_type = KEY_BLISS;
+			}
+			if (!load_private(secrets, line, line_nr, prompt, key_type))
 			{
 				break;
 			}
@@ -1251,8 +1269,8 @@ static void load_secrets(private_stroke_cred_t *this, mem_cred_t *secrets,
 		}
 		else
 		{
-			DBG1(DBG_CFG, "line %d: token must be either "
-				 "RSA, ECDSA, P12, PIN, PSK, EAP, XAUTH or NTLM", line_nr);
+			DBG1(DBG_CFG, "line %d: token must be either RSA, ECDSA, BLISS, "
+						  "P12, PIN, PSK, EAP, XAUTH or NTLM", line_nr);
 			break;
 		}
 	}
@@ -1297,7 +1315,7 @@ METHOD(stroke_cred_t, reread, void,
 	if (msg->reread.flags & REREAD_SECRETS)
 	{
 		DBG1(DBG_CFG, "rereading secrets");
-		load_secrets(this, NULL, SECRETS_FILE, 0, prompt);
+		load_secrets(this, NULL, this->secrets_file, 0, prompt);
 	}
 	if (msg->reread.flags & REREAD_CACERTS)
 	{
@@ -1370,6 +1388,9 @@ stroke_cred_t *stroke_cred_create()
 			.cachecrl = _cachecrl,
 			.destroy = _destroy,
 		},
+		.secrets_file = lib->settings->get_str(lib->settings,
+								"%s.plugins.stroke.secrets_file", SECRETS_FILE,
+								lib->ns),
 		.creds = mem_cred_create(),
 	);
 
@@ -1380,7 +1401,7 @@ stroke_cred_t *stroke_cred_create()
 						FALSE, lib->ns);
 
 	load_certs(this);
-	load_secrets(this, NULL, SECRETS_FILE, 0, NULL);
+	load_secrets(this, NULL, this->secrets_file, 0, NULL);
 
 	return &this->public;
 }

@@ -1,3 +1,27 @@
+strongswan-5.2.2
+----------------
+
+- Fixed a denial-of-service vulnerability triggered by an IKEv2 Key Exchange
+  payload that contains the Diffie-Hellman group 1025.  This identifier was
+  used internally for DH groups with custom generator and prime.  Because
+  these arguments are missing when creating DH objects based on the KE payload
+  an invalid pointer dereference occurred.  This allowed an attacker to crash
+  the IKE daemon with a single IKE_SA_INIT message containing such a KE
+  payload.  The vulnerability has been registered as CVE-2014-9221.
+
+- The left/rightid options in ipsec.conf, or any other identity in strongSwan,
+  now accept prefixes to enforce an explicit type, such as email: or fqdn:.
+  Note that no conversion is done for the remaining string, refer to
+  ipsec.conf(5) for details.
+
+- The post-quantum Bimodal Lattice Signature Scheme (BLISS) can be used as
+  an IKEv2 public key authentication method. The pki tool offers full support
+  for the generation of BLISS key pairs and certificates.
+
+- Fixed mapping of integrity algorithms negotiated for AH via IKEv1. This could
+  cause interoperability issues when connecting to older versions of charon.
+
+
 strongswan-5.2.1
 ----------------
 
@@ -5,6 +29,22 @@ strongswan-5.2.1
   with systemd. It avoids the dependency on ipsec starter and uses swanctl
   as configuration backend, building a simple and lightweight solution. It
   supports native systemd journal logging.
+
+- Support for IKEv2 fragmentation as per RFC 7383 has been added.  Like IKEv1
+  fragmentation it can be enabled by setting fragmentation=yes in ipsec.conf.
+
+- Support of the TCG TNC IF-M Attribute Segmentation specification proposal.
+  All attributes can be segmented. Additionally TCG/SWID Tag, TCG/SWID Tag ID
+  and IETF/Installed Packages attributes can be processed incrementally on a
+  per segment basis.
+
+- The new ext-auth plugin calls an external script to implement custom IKE_SA
+  authorization logic, courtesy of Vyronas Tsingaras.
+
+- For the vici plugin a ruby gem has been added to allow ruby applications
+  to control or monitor the IKE daemon. The vici documentation has been updated
+  to include a description of the available operations and some simple examples
+  using both the libvici C interface and the ruby gem.
 
 
 strongswan-5.2.0

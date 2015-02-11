@@ -617,8 +617,8 @@ METHOD(listener_t, ike_reestablish_post, bool,
 	return TRUE;
 }
 
-static void add_auth_cfg_eap(private_android_service_t *this,
-							 peer_cfg_t *peer_cfg, bool byod)
+static void add_auth_cfg_pw(private_android_service_t *this,
+							peer_cfg_t *peer_cfg, bool byod)
 {
 	identification_t *user;
 	auth_cfg_t *auth;
@@ -653,7 +653,17 @@ static bool add_auth_cfg_cert(private_android_service_t *this,
 	}
 
 	auth = auth_cfg_create();
-	auth->add(auth, AUTH_RULE_AUTH_CLASS, AUTH_CLASS_PUBKEY);
+	if (strpfx("ikev2-eap-tls", this->type))
+	{
+		auth->add(auth, AUTH_RULE_AUTH_CLASS, AUTH_CLASS_EAP);
+		auth->add(auth, AUTH_RULE_EAP_TYPE, EAP_TLS);
+		id = identification_create_from_string("%any");
+		auth->add(auth, AUTH_RULE_AAA_IDENTITY, id);
+	}
+	else
+	{
+		auth->add(auth, AUTH_RULE_AUTH_CLASS, AUTH_CLASS_PUBKEY);
+	}
 	auth->add(auth, AUTH_RULE_SUBJECT_CERT, cert);
 
 	id = cert->get_subject(cert);
@@ -682,7 +692,7 @@ static job_requeue_t initiate(private_android_service_t *this)
 	ike_cfg = ike_cfg_create(IKEV2, TRUE, TRUE, "0.0.0.0",
 							 charon->socket->get_port(charon->socket, FALSE),
 							 this->gateway, IKEV2_UDP_PORT,
-							 FRAGMENTATION_NO, 0);
+							 FRAGMENTATION_YES, 0);
 	ike_cfg->add_proposal(ike_cfg, proposal_create_default(PROTO_IKE));
 	ike_cfg->add_proposal(ike_cfg, proposal_create_default_aead(PROTO_IKE));
 
@@ -698,7 +708,8 @@ static job_requeue_t initiate(private_android_service_t *this)
 
 	/* local auth config */
 	if (streq("ikev2-cert", this->type) ||
-		streq("ikev2-cert-eap", this->type))
+		streq("ikev2-cert-eap", this->type) ||
+		streq("ikev2-eap-tls", this->type))
 	{
 		if (!add_auth_cfg_cert(this, peer_cfg))
 		{
@@ -712,15 +723,15 @@ static job_requeue_t initiate(private_android_service_t *this)
 		streq("ikev2-cert-eap", this->type) ||
 		streq("ikev2-byod-eap", this->type))
 	{
-		add_auth_cfg_eap(this, peer_cfg, strpfx(this->type, "ikev2-byod"));
+		add_auth_cfg_pw(this, peer_cfg, strpfx(this->type, "ikev2-byod"));
 	}
 
 	/* remote auth config */
 	auth = auth_cfg_create();
-	auth->add(auth, AUTH_RULE_AUTH_CLASS, AUTH_CLASS_PUBKEY);
 	gateway = identification_create_from_string(this->gateway);
 	auth->add(auth, AUTH_RULE_IDENTITY, gateway);
 	auth->add(auth, AUTH_RULE_IDENTITY_LOOSE, TRUE);
+	auth->add(auth, AUTH_RULE_AUTH_CLASS, AUTH_CLASS_PUBKEY);
 	peer_cfg->add_auth_cfg(peer_cfg, auth, FALSE);
 
 	child_cfg = child_cfg_create("android", &lifetime, NULL, TRUE, MODE_TUNNEL,

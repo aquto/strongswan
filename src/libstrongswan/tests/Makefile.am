@@ -30,6 +30,7 @@ tests_SOURCES = tests.h tests.c \
   suites/test_hashtable.c \
   suites/test_identification.c \
   suites/test_threading.c \
+  suites/test_process.c \
   suites/test_watcher.c \
   suites/test_stream.c \
   suites/test_fetch_http.c \
@@ -39,6 +40,8 @@ tests_SOURCES = tests.h tests.c \
   suites/test_array.c \
   suites/test_ecdsa.c \
   suites/test_rsa.c \
+  suites/test_certpolicy.c \
+  suites/test_certnames.c \
   suites/test_host.c \
   suites/test_hasher.c \
   suites/test_crypter.c \
@@ -48,6 +51,7 @@ tests_SOURCES = tests.h tests.c \
   suites/test_asn1_parser.c \
   suites/test_printf.c \
   suites/test_test_rng.c \
+  suites/test_mgf1.c \
   suites/test_ntru.c
 
 tests_CFLAGS = \

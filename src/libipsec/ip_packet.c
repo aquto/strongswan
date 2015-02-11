@@ -247,7 +247,7 @@ ip_packet_t *ip_packet_create(chunk_t packet)
 			}
 			ip = (struct ip6_hdr*)packet.ptr;
 			/* remove any RFC 4303 TFC extra padding */
-			packet.len = min(packet.len, untoh16(&ip->ip6_plen));
+			packet.len = min(packet.len, 40 + untoh16(&ip->ip6_plen));
 			/* we only handle packets without extension headers, just skip the
 			 * basic IPv6 header */
 			payload = chunk_skip(packet, 40);
@@ -443,7 +443,7 @@ ip_packet_t *ip_packet_create_from_data(host_t *src, host_t *dst,
 		{
 			struct ip6_hdr ip = {
 				.ip6_flow = htonl(6),
-				.ip6_plen = htons(40 + data.len),
+				.ip6_plen = htons(data.len),
 				.ip6_nxt = next_header,
 				.ip6_hlim = 0x80,
 			};

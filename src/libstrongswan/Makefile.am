@@ -12,6 +12,7 @@ crypto/rngs/rng.c crypto/prf_plus.c crypto/signers/signer.c \
 crypto/signers/mac_signer.c crypto/crypto_factory.c crypto/crypto_tester.c \
 crypto/diffie_hellman.c crypto/aead.c crypto/transform.c \
 crypto/iv/iv_gen_rand.c crypto/iv/iv_gen_seq.c \
+crypto/mgf1/mgf1.c crypto/mgf1/mgf1_bitspender.c \
 credentials/credential_factory.c credentials/builder.c \
 credentials/cred_encoding.c credentials/keys/private_key.c \
 credentials/keys/public_key.c credentials/keys/shared_key.c \
@@ -35,7 +36,7 @@ selectors/traffic_selector.c settings/settings.c settings/settings_types.c \
 settings/settings_parser.y settings/settings_lexer.l \
 utils/utils.c utils/chunk.c utils/debug.c utils/enum.c utils/identification.c \
 utils/lexparser.c utils/optionsfrom.c utils/capabilities.c utils/backtrace.c \
-utils/parser_helper.c utils/test.c utils/utils/strerror.c
+utils/parser_helper.c utils/test.c utils/process.c utils/utils/strerror.c
 
 if !USE_WINDOWS
   libstrongswan_la_SOURCES += \
@@ -67,6 +68,7 @@ crypto/prf_plus.h crypto/signers/signer.h crypto/signers/mac_signer.h \
 crypto/crypto_factory.h crypto/crypto_tester.h crypto/diffie_hellman.h \
 crypto/aead.h crypto/transform.h crypto/pkcs5.h crypto/iv/iv_gen.h \
 crypto/iv/iv_gen_rand.h crypto/iv/iv_gen_seq.h \
+crypto/mgf1/mgf1.h crypto/mgf1/mgf1_bitspender.h \
 credentials/credential_factory.h credentials/builder.h \
 credentials/cred_encoding.h credentials/keys/private_key.h \
 credentials/keys/public_key.h credentials/keys/shared_key.h \
@@ -101,8 +103,8 @@ utils/utils.h utils/chunk.h utils/debug.h utils/enum.h utils/identification.h \
 utils/lexparser.h utils/optionsfrom.h utils/capabilities.h utils/backtrace.h \
 utils/leak_detective.h utils/printf_hook/printf_hook.h \
 utils/printf_hook/printf_hook_vstr.h utils/printf_hook/printf_hook_builtin.h \
-utils/parser_helper.h utils/test.h utils/integrity_checker.h utils/windows.h \
-utils/utils/strerror.h
+utils/parser_helper.h utils/test.h utils/integrity_checker.h utils/process.h \
+utils/utils/strerror.h utils/compat/windows.h utils/compat/apple.h
 endif
 
 library.lo :	$(top_builddir)/config.status
@@ -133,7 +135,7 @@ if USE_WINDOWS
     threading/windows/rwlock.c \
     threading/windows/spinlock.c \
     threading/windows/semaphore.c \
-    utils/windows.c
+    utils/compat/windows.c
 else
   libstrongswan_la_LIBADD += $(PTHREADLIB)
 endif
@@ -544,6 +546,13 @@ if MONOLITHIC
 endif
 endif
 
+if USE_BLISS
+  SUBDIRS += plugins/bliss
+if MONOLITHIC
+  libstrongswan_la_LIBADD += plugins/bliss/libstrongswan-bliss.la
+endif
+endif
+
 if USE_TEST_VECTORS
   SUBDIRS += plugins/test_vectors
 if MONOLITHIC
@@ -555,3 +564,6 @@ if MONOLITHIC
   SUBDIRS += .
 endif
 SUBDIRS += tests
+if USE_BLISS
+  SUBDIRS += plugins/bliss/tests
+endif

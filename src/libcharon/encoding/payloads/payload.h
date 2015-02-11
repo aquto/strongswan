@@ -193,7 +193,7 @@ enum payload_type_t {
 	PLV2_TS_RESPONDER = 45,
 
 	/**
-	 * Encryption payload, contains other payloads (E).
+	 * Encrypted payload, contains other payloads (E).
 	 */
 	PLV2_ENCRYPTED = 46,
 
@@ -211,6 +211,26 @@ enum payload_type_t {
 	 * Generic Secure Password Method (GSPM).
 	 */
 	PLV2_GSPM = 49,
+
+	/**
+	 * Group Identification (draft-yeung-g-ikev2)
+	 */
+	PLV2_IDG = 50,
+
+	/**
+	 * Group Security Association (draft-yeung-g-ikev2)
+	 */
+	PLV2_GSA = 51,
+
+	/**
+	 * Key Download (draft-yeung-g-ikev2)
+	 */
+	PLV2_KD = 52,
+
+	/**
+	 * Encrypted fragment payload (SKF), RFC 7383
+	 */
+	PLV2_FRAGMENT = 53,
 
 #ifdef ME
 	/**
@@ -231,7 +251,7 @@ enum payload_type_t {
 	PLV1_NAT_OA_DRAFT_00_03 = 131,
 
 	/**
-	 * IKE fragment (proprietary IKEv1 extension)
+	 * IKEv1 fragment (proprietary IKEv1 extension)
 	 */
 	PLV1_FRAGMENT = 132,
 
@@ -385,9 +405,10 @@ payload_t *payload_create(payload_type_t type);
  * Check if a specific payload is implemented, or handled as unknown payload.
  *
  * @param type		type of the payload to check
+ * @param maj_ver	major IKE version (use 0 to skip version check)
  * @return			FALSE if payload type handled as unknown payload
  */
-bool payload_is_known(payload_type_t type);
+bool payload_is_known(payload_type_t type, u_int8_t maj_ver);
 
 /**
  * Get the value field in a payload using encoding rules.
