@@ -724,7 +724,7 @@ static job_requeue_t initiate(private_android_service_t *this)
 	peer_cfg->add_auth_cfg(peer_cfg, auth, FALSE);
 
 	child_cfg = child_cfg_create("android", &lifetime, NULL, TRUE, MODE_TUNNEL,
-								 ACTION_NONE, ACTION_RESTART, ACTION_RESTART,
+								 ACTION_NONE, ACTION_NONE, ACTION_NONE,
 								 FALSE, 0, 0, NULL, NULL, 0);
 	/* create ESP proposals with and without DH groups, let responder decide
 	 * if PFS is used */
