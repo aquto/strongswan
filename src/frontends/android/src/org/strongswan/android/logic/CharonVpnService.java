@@ -18,19 +18,21 @@
 package org.strongswan.android.logic;
 
 import java.io.File;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.Certificate;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.strongswan.android.data.VpnProfile;
-import org.strongswan.android.data.VpnProfileDataSource;
 import org.strongswan.android.logic.VpnStateService.ErrorState;
 import org.strongswan.android.logic.VpnStateService.State;
 import org.strongswan.android.logic.imc.ImcState;
 import org.strongswan.android.logic.imc.RemediationInstruction;
-import org.strongswan.android.ui.MainActivity;
 
 import android.app.PendingIntent;
 import android.app.Service;
@@ -50,13 +52,14 @@ public class CharonVpnService extends VpnService implements Runnable
 {
 	private static final String TAG = CharonVpnService.class.getSimpleName();
 	public static final String LOG_FILE = "charon.log";
+	public static final String PROFILE_BUNDLE_KEY = "profile";
 
 	private String mLogFile;
-	private VpnProfileDataSource mDataSource;
 	private Thread mConnectionHandler;
 	private VpnProfile mCurrentProfile;
 	private volatile String mCurrentCertificateAlias;
 	private volatile String mCurrentUserCertificateAlias;
+	private volatile String mCurrentUserCertificatePassword;
 	private VpnProfile mNextProfile;
 	private volatile boolean mProfileUpdated;
 	private volatile boolean mTerminate;
@@ -105,12 +108,7 @@ public class CharonVpnService extends VpnService implements Runnable
 			VpnProfile profile = null;
 			if (bundle != null)
 			{
-				profile = mDataSource.getVpnProfile(bundle.getLong(VpnProfileDataSource.KEY_ID));
-				if (profile != null)
-				{
-					String password = bundle.getString(VpnProfileDataSource.KEY_PASSWORD);
-					profile.setPassword(password);
-				}
+				profile = (VpnProfile)bundle.getParcelable(PROFILE_BUNDLE_KEY);
 			}
 			setNextProfile(profile);
 		}
@@ -122,8 +120,6 @@ public class CharonVpnService extends VpnService implements Runnable
 	{
 		mLogFile = getFilesDir().getAbsolutePath() + File.separator + LOG_FILE;
 
-		mDataSource = new VpnProfileDataSource(this);
-		mDataSource.open();
 		/* use a separate thread as main thread for charon */
 		mConnectionHandler = new Thread(this);
 		/* the thread is started when the service is bound */
@@ -155,7 +151,6 @@ public class CharonVpnService extends VpnService implements Runnable
 		{
 			unbindService(mServiceConnection);
 		}
-		mDataSource.close();
 	}
 
 	/**
@@ -206,6 +201,7 @@ public class CharonVpnService extends VpnService implements Runnable
 						 * a possible deadlock during deinitialization */
 						mCurrentCertificateAlias = mCurrentProfile.getCertificateAlias();
 						mCurrentUserCertificateAlias = mCurrentProfile.getUserCertificateAlias();
+						mCurrentUserCertificatePassword = mCurrentProfile.getUserCertificatePassword();
 
 						startConnection(mCurrentProfile);
 						mIsDisconnecting = false;
@@ -467,15 +463,15 @@ public class CharonVpnService extends VpnService implements Runnable
 	 * @throws KeyChainException
 	 * @throws CertificateEncodingException
 	 */
-	private byte[][] getUserCertificate() throws KeyChainException, InterruptedException, CertificateEncodingException
+	private byte[][] getUserCertificate() throws KeyStoreException, CertificateEncodingException
 	{
 		ArrayList<byte[]> encodings = new ArrayList<byte[]>();
-		X509Certificate[] chain = KeyChain.getCertificateChain(getApplicationContext(), mCurrentUserCertificateAlias);
+		Certificate[] chain = UserCredentialManager.getInstance().getUserCertificateChain(mCurrentUserCertificateAlias);
 		if (chain == null || chain.length == 0)
 		{
 			return null;
 		}
-		for (X509Certificate cert : chain)
+		for (Certificate cert : chain)
 		{
 			encodings.add(cert.getEncoded());
 		}
@@ -493,10 +489,9 @@ public class CharonVpnService extends VpnService implements Runnable
 	 * @throws KeyChainException
 	 * @throws CertificateEncodingException
 	 */
-	private PrivateKey getUserKey() throws KeyChainException, InterruptedException
+	private PrivateKey getUserKey() throws KeyStoreException, NoSuchAlgorithmException, UnrecoverableKeyException
 	{
-		return KeyChain.getPrivateKey(getApplicationContext(), mCurrentUserCertificateAlias);
-
+		return UserCredentialManager.getInstance().getUserKey(mCurrentUserCertificateAlias, mCurrentUserCertificatePassword.toCharArray());
 	}
 
 	/**
@@ -541,14 +536,6 @@ public class CharonVpnService extends VpnService implements Runnable
 		{
 			VpnService.Builder builder = new CharonVpnService.Builder();
 			builder.setSession(mName);
-
-			/* even though the option displayed in the system dialog says "Configure"
-			 * we just use our main Activity */
-			Context context = getApplicationContext();
-			Intent intent = new Intent(context, MainActivity.class);
-			PendingIntent pending = PendingIntent.getActivity(context, 0, intent,
-															  PendingIntent.FLAG_UPDATE_CURRENT);
-			builder.setConfigureIntent(pending);
 			return builder;
 		}
 
@@ -729,15 +716,10 @@ public class CharonVpnService extends VpnService implements Runnable
 	static
 	{
 		System.loadLibrary("strongswan");
-
-		if (MainActivity.USE_BYOD)
-		{
-			System.loadLibrary("tncif");
-			System.loadLibrary("tnccs");
-			System.loadLibrary("imcv");
-			System.loadLibrary("pts");
-		}
-
+		System.loadLibrary("tncif");
+		System.loadLibrary("tnccs");
+		System.loadLibrary("imcv");
+		System.loadLibrary("pts");
 		System.loadLibrary("hydra");
 		System.loadLibrary("charon");
 		System.loadLibrary("ipsec");
