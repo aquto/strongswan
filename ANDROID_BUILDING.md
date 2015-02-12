@@ -71,7 +71,9 @@ once all that is done, rerun:
 
 ## Building StrongSwan Android Client
 
-    $ cd strongswan/src/frontends/android/
+    $ cd strongswan
+    $ ./autogen.sh && ./configure && make && make distclean
+    $ cd src/frontends/android/
     $ ln -s ../../../../ jni/strongswan
     $ ln -s ../../../../../android-ndk-openssl/ jni/openssl
     $ cd ../../..
