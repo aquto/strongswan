@@ -1302,8 +1302,9 @@ METHOD(ike_sa_manager_t, checkout_by_message, ike_sa_t*,
 
 			ike_id = entry->ike_sa->get_id(entry->ike_sa);
 			entry->checked_out = TRUE;
-			if (message->get_first_payload_type(message) != PLV1_FRAGMENT)
-			{
+			if (message->get_first_payload_type(message) != PLV1_FRAGMENT &&
+				message->get_first_payload_type(message) != PLV2_FRAGMENT)
+			{	/* TODO-FRAG: this fails if there are unencrypted payloads */
 				entry->processing = get_message_id_or_hash(message);
 			}
 			if (ike_id->get_responder_spi(ike_id) == 0)
@@ -1782,7 +1783,10 @@ static status_t enforce_replace(private_ike_sa_manager_t *this,
 	if (is_ikev1_reauth(duplicate, host))
 	{
 		/* looks like a reauthentication attempt */
-		adopt_children(duplicate, new);
+		if (!new->has_condition(new, COND_INIT_CONTACT_SEEN))
+		{
+			adopt_children(duplicate, new);
+		}
 		/* For IKEv1 we have to delay the delete for the old IKE_SA. Some
 		 * peers need to complete the new SA first, otherwise the quick modes
 		 * might get lost. */

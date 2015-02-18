@@ -1,7 +1,7 @@
 #
 # Copyright (C) 2007-2014 Tobias Brunner
-# Copyright (C) 2006-2013 Andreas Steffen
-# Copyright (C) 2006-2013 Martin Willi
+# Copyright (C) 2006-2014 Andreas Steffen
+# Copyright (C) 2006-2014 Martin Willi
 # Hochschule fuer Technik Rapperswil
 #
 # This program is free software; you can redistribute it and/or modify it
@@ -19,7 +19,7 @@
 #  initialize & set some vars
 # ============================
 
-AC_INIT([strongSwan],[5.2.1dr1])
+AC_INIT([strongSwan],[5.2.2])
 AM_INIT_AUTOMAKE(m4_esyscmd([
 	echo tar-ustar
 	echo subdir-objects
@@ -68,6 +68,7 @@ ARG_WITH_SET([capabilities],         [no], [set capability dropping library. Cur
 ARG_WITH_SET([mpz_powm_sec],         [yes], [use the more side-channel resistant mpz_powm_sec in libgmp, if available])
 ARG_WITH_SET([dev-headers],          [no], [install strongSwan development headers to directory.])
 ARG_WITH_SET([printf-hooks],         [auto], [force the use of a specific printf hook implementation (auto, builtin, glibc, vstr).])
+ARG_WITH_SET([rubygemdir],           ["gem environment gemdir"], [path to install ruby gems to])
 
 if test -n "$PKG_CONFIG"; then
 	systemdsystemunitdir_default=$($PKG_CONFIG --variable=systemdsystemunitdir systemd)
@@ -122,6 +123,7 @@ m4_include(m4/macros/enable-disable.m4)
 # crypto plugins
 ARG_DISBL_SET([aes],            [disable AES software implementation plugin.])
 ARG_ENABL_SET([af-alg],         [enable AF_ALG crypto interface to Linux Crypto API.])
+ARG_ENABL_SET([bliss],          [enable BLISS software implementation plugin.])
 ARG_ENABL_SET([blowfish],       [enable Blowfish software implementation plugin.])
 ARG_ENABL_SET([ccm],            [enables the CCM AEAD wrapper crypto plugin.])
 ARG_DISBL_SET([cmac],           [disable CMAC crypto implementation plugin.])
@@ -189,6 +191,7 @@ ARG_ENABL_SET([eap-peap],       [enable EAP PEAP authentication module.])
 ARG_ENABL_SET([eap-tnc],        [enable EAP TNC trusted network connect module.])
 ARG_ENABL_SET([eap-dynamic],    [enable dynamic EAP proxy module.])
 ARG_ENABL_SET([eap-radius],     [enable RADIUS proxy authentication module.])
+ARG_ENABL_SET([ext-auth],       [enable plugin calling an external authorization script.])
 ARG_ENABL_SET([ipseckey],       [enable IPSECKEY authentication plugin.])
 ARG_ENABL_SET([keychain],       [enables OS X Keychain Services credential set.])
 ARG_ENABL_SET([pkcs11],         [enables the PKCS11 token support plugin.])
@@ -284,6 +287,7 @@ ARG_ENABL_SET([integrity-test], [enable integrity testing of libstrongswan and p
 ARG_DISBL_SET([load-warning],   [disable the charon plugin load option warning in starter.])
 ARG_ENABL_SET([mediation],      [enable IKEv2 Mediation Extension.])
 ARG_ENABL_SET([unwind-backtraces],[use libunwind to create backtraces for memory leaks and segfaults.])
+ARG_ENABL_SET([ruby-gems],      [enable installation of provided ruby gems.])
 # compile options
 ARG_ENABL_SET([coverage],       [enable lcov coverage report generation.])
 ARG_ENABL_SET([leak-detective], [enable malloc hooks to find memory leaks.])
@@ -395,10 +399,6 @@ fi
 
 if test x$imc_test = xtrue -o x$imv_test = xtrue -o x$imc_scanner = xtrue -o x$imv_scanner = xtrue -o x$imc_os = xtrue -o x$imv_os = xtrue -o x$imc_attestation = xtrue -o x$imv_attestation = xtrue -o x$imc_swid = xtrue -o x$imv_swid = xtrue; then
 	imcv=true;
-fi
-
-if test x$imc_attestation = xtrue -o x$imv_attestation = xtrue -o x$imc_swid = xtrue -o x$imv_swid = xtrue; then
-	pts=true;
 fi
 
 if test x$fips_prf = xtrue; then
@@ -627,6 +627,18 @@ AC_COMPILE_IFELSE(
 		  }]])],
 	[AC_MSG_RESULT([yes]);
 	 AC_DEFINE([HAVE_IN6_PKTINFO], [], [have struct in6_pktinfo.ipi6_ifindex])],
+	[AC_MSG_RESULT([no])]
+)
+
+AC_MSG_CHECKING([for RTM_IFANNOUNCE])
+AC_COMPILE_IFELSE(
+	[AC_LANG_PROGRAM(
+		[[#include <sys/socket.h>
+		  #include <net/if.h>
+		  #include <net/route.h>]],
+		[[return RTM_IFANNOUNCE;]])],
+	[AC_MSG_RESULT([yes]);
+	 AC_DEFINE([HAVE_RTM_IFANNOUNCE], [], [have PF_ROUTE RTM_IFANNOUNCE defined])],
 	[AC_MSG_RESULT([no])]
 )
 
@@ -1155,6 +1167,17 @@ if test x$coverage = xtrue; then
 	CFLAGS="${CFLAGS} -g -O0"
 fi
 
+if test x$ruby_gems = xtrue; then
+	AC_PATH_PROG([GEM], [gem], [], [$PATH:/bin:/usr/bin:/usr/local/bin])
+	if test x$GEM = x; then
+		AC_MSG_ERROR(RubyGems package manager not found)
+	fi
+	if test "x$rubygemdir" = "xgem environment gemdir"; then
+		rubygemdir=$($GEM environment gemdir)
+	fi
+	AC_SUBST(RUBYGEMDIR, "$rubygemdir")
+fi
+
 # ===============================================
 #  collect plugin list for strongSwan components
 # ===============================================
@@ -1224,11 +1247,12 @@ ADD_PLUGIN([agent],                [s charon nm cmd])
 ADD_PLUGIN([keychain],             [s charon cmd])
 ADD_PLUGIN([xcbc],                 [s charon nm cmd])
 ADD_PLUGIN([cmac],                 [s charon nm cmd])
-ADD_PLUGIN([hmac],                 [s charon scripts nm cmd])
+ADD_PLUGIN([hmac],                 [s charon pki scripts nm cmd])
 ADD_PLUGIN([ctr],                  [s charon scripts nm cmd])
 ADD_PLUGIN([ccm],                  [s charon scripts nm cmd])
 ADD_PLUGIN([gcm],                  [s charon scripts nm cmd])
 ADD_PLUGIN([ntru],                 [s charon scripts nm cmd])
+ADD_PLUGIN([bliss],                [s charon pki scripts nm cmd])
 ADD_PLUGIN([curl],                 [s charon scepclient pki scripts nm cmd])
 ADD_PLUGIN([winhttp],              [s charon pki scripts])
 ADD_PLUGIN([soup],                 [s charon pki scripts nm cmd])
@@ -1289,6 +1313,7 @@ ADD_PLUGIN([android-dns],          [c charon])
 ADD_PLUGIN([android-log],          [c charon])
 ADD_PLUGIN([ha],                   [c charon])
 ADD_PLUGIN([whitelist],            [c charon])
+ADD_PLUGIN([ext-auth],             [c charon])
 ADD_PLUGIN([lookip],               [c charon])
 ADD_PLUGIN([error-notify],         [c charon])
 ADD_PLUGIN([certexpire],           [c charon])
@@ -1375,6 +1400,7 @@ AM_CONDITIONAL(USE_CCM, test x$ccm = xtrue)
 AM_CONDITIONAL(USE_GCM, test x$gcm = xtrue)
 AM_CONDITIONAL(USE_AF_ALG, test x$af_alg = xtrue)
 AM_CONDITIONAL(USE_NTRU, test x$ntru = xtrue)
+AM_CONDITIONAL(USE_BLISS, test x$bliss = xtrue)
 
 #  charon plugins
 # ----------------
@@ -1400,6 +1426,7 @@ AM_CONDITIONAL(USE_KERNEL_LIBIPSEC, test x$kernel_libipsec = xtrue)
 AM_CONDITIONAL(USE_KERNEL_WFP, test x$kernel_wfp = xtrue)
 AM_CONDITIONAL(USE_KERNEL_IPH, test x$kernel_iph = xtrue)
 AM_CONDITIONAL(USE_WHITELIST, test x$whitelist = xtrue)
+AM_CONDITIONAL(USE_EXT_AUTH, test x$ext_auth = xtrue)
 AM_CONDITIONAL(USE_LOOKIP, test x$lookip = xtrue)
 AM_CONDITIONAL(USE_ERROR_NOTIFY, test x$error_notify = xtrue)
 AM_CONDITIONAL(USE_CERTEXPIRE, test x$certexpire = xtrue)
@@ -1500,7 +1527,6 @@ AM_CONDITIONAL(USE_SIMAKA, test x$simaka = xtrue)
 AM_CONDITIONAL(USE_TLS, test x$tls = xtrue)
 AM_CONDITIONAL(USE_RADIUS, test x$radius = xtrue)
 AM_CONDITIONAL(USE_IMCV, test x$imcv = xtrue)
-AM_CONDITIONAL(USE_PTS, test x$pts = xtrue)
 AM_CONDITIONAL(USE_TROUSERS, test x$tss = xtrousers -o x$aikgen = xtrue)
 AM_CONDITIONAL(MONOLITHIC, test x$monolithic = xtrue)
 AM_CONDITIONAL(USE_SILENT_RULES, test x$enable_silent_rules = xyes)
@@ -1513,6 +1539,7 @@ AM_CONDITIONAL(USE_SWANCTL, test x$swanctl = xtrue)
 AM_CONDITIONAL(USE_SVC, test x$svc = xtrue)
 AM_CONDITIONAL(USE_SYSTEMD, test x$systemd = xtrue)
 AM_CONDITIONAL(USE_LEGACY_SYSTEMD, test -n "$systemdsystemunitdir" -a "x$systemdsystemunitdir" != xno)
+AM_CONDITIONAL(USE_RUBY_GEMS, test x$ruby_gems = xtrue)
 
 # ========================
 #  set global definitions
@@ -1617,6 +1644,8 @@ AC_CONFIG_FILES([
 	src/libstrongswan/plugins/gcm/Makefile
 	src/libstrongswan/plugins/af_alg/Makefile
 	src/libstrongswan/plugins/ntru/Makefile
+	src/libstrongswan/plugins/bliss/Makefile
+	src/libstrongswan/plugins/bliss/tests/Makefile
 	src/libstrongswan/plugins/test_vectors/Makefile
 	src/libstrongswan/tests/Makefile
 	src/libhydra/Makefile
@@ -1626,6 +1655,7 @@ AC_CONFIG_FILES([
 	src/libhydra/plugins/kernel_pfkey/Makefile
 	src/libhydra/plugins/kernel_pfroute/Makefile
 	src/libhydra/plugins/resolve/Makefile
+	src/libhydra/tests/Makefile
 	src/libipsec/Makefile
 	src/libsimaka/Makefile
 	src/libtls/Makefile
@@ -1640,11 +1670,6 @@ AC_CONFIG_FILES([
 	src/libtnccs/plugins/tnccs_20/Makefile
 	src/libtnccs/plugins/tnccs_dynamic/Makefile
 	src/libpttls/Makefile
-	src/libpts/Makefile
-	src/libpts/plugins/imc_attestation/Makefile
-	src/libpts/plugins/imv_attestation/Makefile
-	src/libpts/plugins/imc_swid/Makefile
-	src/libpts/plugins/imv_swid/Makefile
 	src/libimcv/Makefile
 	src/libimcv/plugins/imc_test/Makefile
 	src/libimcv/plugins/imv_test/Makefile
@@ -1652,6 +1677,10 @@ AC_CONFIG_FILES([
 	src/libimcv/plugins/imv_scanner/Makefile
 	src/libimcv/plugins/imc_os/Makefile
 	src/libimcv/plugins/imv_os/Makefile
+	src/libimcv/plugins/imc_attestation/Makefile
+	src/libimcv/plugins/imv_attestation/Makefile
+	src/libimcv/plugins/imc_swid/Makefile
+	src/libimcv/plugins/imv_swid/Makefile
 	src/charon/Makefile
 	src/charon-nm/Makefile
 	src/charon-tkm/Makefile
@@ -1701,6 +1730,7 @@ AC_CONFIG_FILES([
 	src/libcharon/plugins/kernel_wfp/Makefile
 	src/libcharon/plugins/kernel_iph/Makefile
 	src/libcharon/plugins/whitelist/Makefile
+	src/libcharon/plugins/ext_auth/Makefile
 	src/libcharon/plugins/lookip/Makefile
 	src/libcharon/plugins/error_notify/Makefile
 	src/libcharon/plugins/certexpire/Makefile
@@ -1715,6 +1745,7 @@ AC_CONFIG_FILES([
 	src/libcharon/plugins/maemo/Makefile
 	src/libcharon/plugins/stroke/Makefile
 	src/libcharon/plugins/vici/Makefile
+	src/libcharon/plugins/vici/ruby/Makefile
 	src/libcharon/plugins/updown/Makefile
 	src/libcharon/plugins/dhcp/Makefile
 	src/libcharon/plugins/unit_tester/Makefile
@@ -1759,6 +1790,7 @@ AC_CONFIG_FILES([
 	src/pki/man/pki---issue.1
 	src/pki/man/pki---keyid.1
 	src/pki/man/pki---pkcs7.1
+	src/pki/man/pki---pkcs12.1
 	src/pki/man/pki---print.1
 	src/pki/man/pki---pub.1
 	src/pki/man/pki---req.1

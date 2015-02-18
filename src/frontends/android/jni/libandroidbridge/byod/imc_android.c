@@ -21,7 +21,6 @@
 #include "../charonservice.h"
 
 #include <tnc/tnc.h>
-#include <libpts.h>
 #include <imcv.h>
 #include <imc/imc_agent.h>
 #include <imc/imc_msg.h>
@@ -89,8 +88,6 @@ static TNC_Result tnc_imc_initialize(TNC_IMCID imc_id,
 	{
 		return TNC_RESULT_FATAL;
 	}
-
-	libpts_init();
 
 	if (min_version > TNC_IFIMC_VERSION_1 || max_version < TNC_IFIMC_VERSION_1)
 	{
@@ -253,9 +250,8 @@ static pa_tnc_attr_t *get_measurement(pen_type_t attr_type, enumerator_t *args)
 	{
 		goto failed;
 	}
-	attr = imcv_pa_tnc_attributes->create(imcv_pa_tnc_attributes,
-										  attr_type.vendor_id, attr_type.type,
-										  data);
+	attr = imcv_pa_tnc_attributes->construct(imcv_pa_tnc_attributes,
+									attr_type.vendor_id, attr_type.type, data);
 	(*env)->ReleaseByteArrayElements(env, jmeasurement, data.ptr, JNI_ABORT);
 	androidjni_detach_thread();
 	return attr;
@@ -507,13 +503,15 @@ static TNC_Result receive_message(imc_android_state_t *state, imc_msg_t *in_msg)
 	TNC_Result result;
 	bool fatal_error = FALSE;
 
+	out_msg = imc_msg_create_as_reply(in_msg);
+
 	/* parse received PA-TNC message and handle local and remote errors */
-	result = in_msg->receive(in_msg, &fatal_error);
+	result = in_msg->receive(in_msg, out_msg, &fatal_error);
 	if (result != TNC_RESULT_SUCCESS)
 	{
+		out_msg->destroy(out_msg);
 		return result;
 	}
-	out_msg = imc_msg_create_as_reply(in_msg);
 
 	/* analyze PA-TNC attributes */
 	enumerator = in_msg->create_attribute_enumerator(in_msg);
@@ -643,7 +641,6 @@ static TNC_Result tnc_imc_terminate(TNC_IMCID imc_id)
 	}
 	imc_android->destroy(imc_android);
 	imc_android = NULL;
-	libpts_deinit();
 	return TNC_RESULT_SUCCESS;
 }
 

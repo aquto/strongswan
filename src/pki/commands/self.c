@@ -57,7 +57,8 @@ static int self()
 	identification_t *id = NULL;
 	linked_list_t *san, *ocsp, *permitted, *excluded, *policies, *mappings;
 	int pathlen = X509_NO_CONSTRAINT, inhibit_any = X509_NO_CONSTRAINT;
-	int inhibit_mapping = X509_NO_CONSTRAINT, require_explicit = X509_NO_CONSTRAINT;
+	int inhibit_mapping = X509_NO_CONSTRAINT;
+	int require_explicit = X509_NO_CONSTRAINT;
 	chunk_t serial = chunk_empty;
 	chunk_t encoding = chunk_empty;
 	time_t not_before, not_after, lifetime = 1095 * 24 * 60 * 60;
@@ -87,6 +88,10 @@ static int self()
 				else if (streq(arg, "ecdsa"))
 				{
 					type = KEY_ECDSA;
+				}
+				else if (streq(arg, "bliss"))
+				{
+					type = KEY_BLISS;
 				}
 				else
 				{
@@ -257,6 +262,11 @@ static int self()
 		break;
 	}
 
+	if (type == KEY_BLISS)
+	{
+		/* currently only SHA-512 is supported */
+		digest = HASH_SHA512;
+	}
 	if (!dn)
 	{
 		error = "--dn is required";
@@ -407,7 +417,7 @@ static void __attribute__ ((constructor))reg()
 	command_register((command_t) {
 		self, 's', "self",
 		"create a self signed certificate",
-		{" [--in file|--keyid hex] [--type rsa|ecdsa]",
+		{" [--in file|--keyid hex] [--type rsa|ecdsa|bliss]",
 		 " --dn distinguished-name [--san subjectAltName]+",
 		 "[--lifetime days] [--serial hex] [--ca] [--ocsp uri]+",
 		 "[--flag serverAuth|clientAuth|crlSign|ocspSigning|msSmartcardLogon]+",
