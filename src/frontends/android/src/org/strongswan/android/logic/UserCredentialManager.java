@@ -42,7 +42,9 @@ public class UserCredentialManager {
 		ArrayList<Certificate> certs = new ArrayList<Certificate>();
 		try {
 			this.mLock.readLock().lock();
-			certs.addAll(Arrays.asList(store.getCertificateChain(alias)));
+			Certificate[] chain = store.getCertificateChain(alias);
+			if(chain != null)
+				certs.addAll(Arrays.asList(store.getCertificateChain(alias)));
 		} finally {
 			this.mLock.readLock().unlock();
 		}
