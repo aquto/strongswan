@@ -350,10 +350,10 @@ public class CharonVpnService extends VpnService implements Runnable
 		switch (status)
 		{
 			case STATE_CHILD_SA_DOWN:
-				if (!mIsDisconnecting)
-				{
-					setState(State.CONNECTING);
-				}
+				/* For our purposes if the child sa goes down it should stay down.
+				   Since we changed the dpd_action and close_action from ACTION_RESTART
+				   to ACTION_NONE don't transition to CONNECTING and trigger a disconnect. */
+				setNextProfile(null);
 				break;
 			case STATE_CHILD_SA_UP:
 				setState(State.CONNECTED);
