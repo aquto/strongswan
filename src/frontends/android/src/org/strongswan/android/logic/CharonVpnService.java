@@ -347,12 +347,14 @@ public class CharonVpnService extends VpnService implements Runnable
 	 */
 	public void updateStatus(int status)
 	{
+		/* For our purposes if the child sa goes down it should stay down.
+		   Since we changed the dpd_action and close_action from ACTION_RESTART
+		   to ACTION_NONE don't transition to CONNECTING instead trigger a disconnect. 
+		   Additionally, if we get an error back, because the policy is not to
+		   automatically reconnect we should also trigger a disconnect/shutdown. */
 		switch (status)
 		{
 			case STATE_CHILD_SA_DOWN:
-				/* For our purposes if the child sa goes down it should stay down.
-				   Since we changed the dpd_action and close_action from ACTION_RESTART
-				   to ACTION_NONE don't transition to CONNECTING and trigger a disconnect. */
 				setNextProfile(null);
 				break;
 			case STATE_CHILD_SA_UP:
@@ -360,18 +362,23 @@ public class CharonVpnService extends VpnService implements Runnable
 				break;
 			case STATE_AUTH_ERROR:
 				setErrorDisconnect(ErrorState.AUTH_FAILED);
+				setNextProfile(null);
 				break;
 			case STATE_PEER_AUTH_ERROR:
 				setErrorDisconnect(ErrorState.PEER_AUTH_FAILED);
+				setNextProfile(null);
 				break;
 			case STATE_LOOKUP_ERROR:
 				setErrorDisconnect(ErrorState.LOOKUP_FAILED);
+				setNextProfile(null);
 				break;
 			case STATE_UNREACHABLE_ERROR:
 				setErrorDisconnect(ErrorState.UNREACHABLE);
+				setNextProfile(null);
 				break;
 			case STATE_GENERIC_ERROR:
 				setErrorDisconnect(ErrorState.GENERIC_ERROR);
+				setNextProfile(null);
 				break;
 			default:
 				Log.e(TAG, "Unknown status code received");
