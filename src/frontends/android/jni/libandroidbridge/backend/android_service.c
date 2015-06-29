@@ -683,8 +683,8 @@ static job_requeue_t initiate(private_android_service_t *this)
 	auth_cfg_t *auth;
 	lifetime_cfg_t lifetime = {
 		.time = {
-			.life = 3600, /* 1h */
-			.rekey = 3000, /* 50min */
+			.life = 36000, /* 10h */
+			.rekey = 0, /* disabled */
 			.jitter = 300 /* 5min */
 		}
 	};
@@ -698,7 +698,7 @@ static job_requeue_t initiate(private_android_service_t *this)
 
 	peer_cfg = peer_cfg_create("android", ike_cfg, CERT_SEND_IF_ASKED,
 							   UNIQUE_REPLACE, 0, /* keyingtries */
-							   36000, 0, /* rekey 10h, reauth none */
+							   0, 0, /* rekey - disabled, reauth none */
 							   600, 600, /* jitter, over 10min */
 							   TRUE, FALSE, TRUE, /* mobike, aggressive, pull */
 							   0, 0, /* DPD delay, timeout */
